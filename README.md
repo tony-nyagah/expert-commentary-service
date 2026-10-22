@@ -126,6 +126,14 @@ You can specify the clinical rules, educational materials, and general descripti
    ```
    Once running, access the interactive OpenAPI documentation at [http://localhost:8005/docs](http://localhost:8005/docs).
 
+4. **Lint, Format and Test**
+   CI runs the same checks on every push and pull request:
+   ```bash
+   uv run ruff check .
+   uv run ruff format .
+   uv run pytest
+   ```
+
 ---
 
 ### Docker Image
