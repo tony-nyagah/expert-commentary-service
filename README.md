@@ -21,7 +21,7 @@ The system message is the fixed set of writing rules in `app/prompts.py`. It con
 
 The user message is built from your request, and everything in it comes from what you sent:
 
-- the program name and code, and the event name
+- the program name and the event name (the program code is only used to find the description file and in logs; the model is told to use full names, never codes or short forms)
 - a program description: `program_description` from the request if you sent one, otherwise the contents of `config/programs/<program code>.md` if that file exists, otherwise a line saying there are no guidelines
 - the overall pass rate and the program totals
 - for each analyte: its name, whether it's quantitative, its totals and the reviewer's note

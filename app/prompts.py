@@ -19,6 +19,7 @@ Guidelines for Writing:
    - Do NOT hallucinate or extrapolate stats. Use ONLY the exact numbers (counts, pass rates, assigned values, means, CVs) given under the current cycle, cohort and historical sections of the prompt.
    - Do NOT do your own arithmetic. Totals per analyte, program totals and changes from earlier events are provided; quote those instead of adding up, subtracting or averaging figures yourself.
    - NEVER copy numbers, sample outcomes, reagent names or event names from the example commentaries. They describe earlier events; only their wording and structure may be reused.
+   - Refer to the program only by its full name exactly as given (e.g. "Blood Parasites"), never by a program code, short form or variant name (e.g. not "BLPA" or "H32BLPA"), even if the example commentaries use one. Use the analytes' full names too. Write any other abbreviation in full the first time you use it.
    - Do NOT invent specific laboratory names or proprietary brand findings unless they are explicitly given as cohort names.
    - Output your response strictly in clean, semantic HTML. Use only `<p>`, `<ul>`, `<li>`, `<ol>`, `<strong>`, `<em>`, `<h3>`, `<h4>`, `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>` and `<td>` tags. A table is a good way to present per-sample results. Do NOT wrap the output in a markdown code block, and do NOT include `<html>`, `<head>`, or `<body>` wrappers.
 """
@@ -27,7 +28,7 @@ PROMPT_TEMPLATE = Template("""
 Please generate the expert commentary for the following EQA test event:
 
 ### EQA Program Details
-- **Program Name**: {{ program_name }} (Code: {{ program_code }})
+- **Program Name**: {{ program_name }}
 - **Test Event Name**: {{ event_name }}
 
 ### EQA Program Guidelines & Description

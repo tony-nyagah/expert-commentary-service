@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app import services
 from app.main import app
-from app.prompts import PROMPT_TEMPLATE
+from app.prompts import PROMPT_TEMPLATE, SYSTEM_INSTRUCTIONS
 from app.schemas import CommentaryRequest
 
 client = TestClient(app)
@@ -122,6 +122,15 @@ def test_prompt_includes_current_stats_and_examples() -> None:
     assert "**TE-2026-01**: 87.5%" in prompt
     assert '<example_commentary index="1">' in prompt
     assert "compared to 88% in the previous event" in prompt
+
+
+def test_prompt_uses_the_full_program_name_not_the_code() -> None:
+    request = CommentaryRequest(**{**PAYLOAD, "program_code": "H32BLPA", "program_name": "Blood Parasites"})
+    prompt = PROMPT_TEMPLATE.render(**request.model_dump())
+
+    assert "**Program Name**: Blood Parasites" in prompt
+    assert "H32BLPA" not in prompt
+    assert "never by a program code, short form or variant name" in SYSTEM_INSTRUCTIONS
 
 
 def test_prompt_without_examples_or_cohorts() -> None:
