@@ -1,42 +1,59 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 class SampleStats(BaseModel):
-    sample_name: str = Field(..., description="Name of the sample (e.g. Sample A)")
-    target_value: Optional[float] = Field(None, description="The expected target or consensus value, if applicable")
-    pass_rate: float = Field(..., description="Percentage of laboratories that achieved an acceptable result")
-    average_score: float = Field(..., description="The average score (percentage or scale) achieved by participants for this sample")
+    name: str = Field(..., description="Name of the sample (e.g. Sample A)")
+    assigned_value: Optional[str] = Field(
+        None,
+        description="Expected result for the sample: a reference response, or a consensus mean ± SD with its acceptable range"
+    )
+    participants: int = Field(..., description="Number of laboratory results evaluated for this sample")
+    acceptable: int = Field(..., description="Number of results graded acceptable")
+    warning: int = Field(0, description="Number of results graded warning")
+    not_acceptable: int = Field(..., description="Number of results graded not acceptable")
+    ungraded: int = Field(0, description="Number of results that were not graded or not evaluated")
+    pass_rate: float = Field(..., description="Percentage of graded results that were acceptable")
 
-class MethodCohort(BaseModel):
-    method_name: str = Field(..., description="Name of the analysis method or instrument cohort")
-    participant_count: int = Field(..., description="Number of participants in this cohort")
-    mean: float = Field(..., description="Mean value of results submitted by this cohort")
-    cv: float = Field(..., description="Coefficient of Variation (%) representing the dispersion of results")
+class AnalyteStats(BaseModel):
+    name: str = Field(..., description="Name of the analyte or test")
+    is_quantitative: bool = Field(..., description="Whether the analyte reports numeric results")
+    review_comment: Optional[str] = Field(
+        None,
+        description="Note left by the scientist who reviewed this analyte's analysis"
+    )
+    samples: List[SampleStats] = Field(..., description="Performance statistics per sample")
+
+class Cohort(BaseModel):
+    name: str = Field(..., description="Name of the method, reagent or instrument")
+    kind: Literal["method", "reagent", "instrument"] = Field(..., description="What the cohort groups results by")
+    participant_count: int = Field(..., description="Number of graded results from this cohort")
+    acceptable_percent: float = Field(..., description="Percentage of the cohort's graded results that were acceptable")
+    mean: Optional[float] = Field(None, description="Mean result of the cohort, for quantitative analytes")
+    cv: Optional[float] = Field(None, description="Coefficient of Variation (%) of the cohort, for quantitative analytes")
 
 class HistoricalEventStats(BaseModel):
-    event_name: str = Field(..., description="Name/code of the historical test event")
-    average_score: float = Field(..., description="Overall average score achieved in the historical event")
-    pass_rate: Optional[float] = Field(None, description="Overall pass rate in the historical event")
-    commentary_summary: Optional[str] = Field(
-        None, 
-        description="A brief summary or text of the prior event's commentary to maintain context continuity"
-    )
+    event_name: str = Field(..., description="Name/code of the earlier test event")
+    pass_rate: float = Field(..., description="Overall pass rate in that event")
 
 class CommentaryRequest(BaseModel):
     program_code: str = Field(..., description="Unique code identifying the EQA program (e.g. MALARIA-RDT)")
     program_name: str = Field(..., description="Full human-readable name of the program")
     event_name: str = Field(..., description="Name of the current EQA test event")
-    overall_average_score: float = Field(..., description="Overall average score achieved across all samples and cohorts in this event")
-    samples: List[SampleStats] = Field(..., description="Performance statistics grouped by sample")
-    cohorts: List[MethodCohort] = Field(..., description="Performance statistics grouped by analysis method cohorts")
-    common_failure_modes: List[str] = Field(default=[], description="Common causes of failure identified by technical staff or algorithms")
+    overall_pass_rate: float = Field(..., description="Mean of the per-sample pass rates across the program")
+    analytes: List[AnalyteStats] = Field(..., description="Performance statistics per analyte and sample")
+    cohorts: List[Cohort] = Field(default=[], description="Performance grouped by method, reagent or instrument")
+    common_failure_modes: List[str] = Field(default=[], description="Common causes of failure identified by technical staff")
     program_description: Optional[str] = Field(
-        None, 
+        None,
         description="Clinical overview of what this program evaluates. If not provided, the service falls back to local config files."
     )
     history: List[HistoricalEventStats] = Field(
-        default=[], 
-        description="Performance history of this program over previous cycles to allow trend analysis"
+        default=[],
+        description="Pass rates from earlier events of this program, oldest first"
+    )
+    example_commentaries: List[str] = Field(
+        default=[],
+        description="Earlier expert commentaries for this program, written by people, used as examples of structure and tone"
     )
 
 class CommentaryResponse(BaseModel):

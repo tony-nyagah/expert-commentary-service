@@ -65,7 +65,7 @@ def generate_expert_commentary(request: CommentaryRequest) -> CommentaryResponse
         mock_html = f"""
         <h3>[DEVELOPMENT MODE - GEMINI_API_KEY IS NOT SET]</h3>
         <p>This is a mock expert commentary for the <strong>{request.program_name}</strong> program during the <strong>{request.event_name}</strong> cycle.</p>
-        <p>Overall performance score was {request.overall_average_score}%. Performance by sample: {', '.join([f'{s.sample_name} ({s.average_score}%)' for s in request.samples])}.</p>
+        <p>Overall pass rate was {request.overall_pass_rate}%. Performance by sample: {', '.join([f'{a.name} {s.name} ({s.pass_rate}%)' for a in request.analytes for s in a.samples])}.</p>
         <p>Failure modes addressed: {', '.join(request.common_failure_modes) if request.common_failure_modes else 'None'}.</p>
         <p><em>Disclaimer: Please set the GEMINI_API_KEY environment variable to generate real AI commentary.</em></p>
         """
