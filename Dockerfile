@@ -1,11 +1,13 @@
 # Stage 1: Build virtual environment
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS builder
+# Debian-based like the runtime stage: wheels built against musl (alpine) don't load on glibc
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
 
 # Install dependencies first (for docker layer caching)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
     uv sync --frozen --no-install-project --no-dev
 
 # Copy application source code and sync
@@ -27,4 +29,4 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8005
 
-CMD ["fastapi", "run", "app.main:app", "--port", "8005", "--host", "0.0.0.0"]
+CMD ["fastapi", "run", "app/main.py", "--port", "8005", "--host", "0.0.0.0"]
