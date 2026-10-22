@@ -128,6 +128,17 @@ You can specify the clinical rules, educational materials, and general descripti
 
 ---
 
+### Docker Image
+
+Every push to `main` publishes `ghcr.io/tony-nyagah/expert-commentary-service` tagged `latest`, `main` and `sha-<short sha>`; version tags like `v1.2.3` also publish `1.2.3` and `1.2`. Pin a `sha-` or version tag in deployments.
+
+```bash
+docker run -p 8005:8005 \
+  -e LLM_BASE_URL=https://api.deepseek.com -e LLM_MODEL=deepseek-flash -e LLM_API_KEY=sk-... \
+  -e SERVICE_TOKEN=shared_secret \
+  ghcr.io/tony-nyagah/expert-commentary-service:latest
+```
+
 ### LLM Providers
 
 The service calls the provider's OpenAI-compatible chat completions API, so any provider that offers one works and switching is only a matter of `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY`:
