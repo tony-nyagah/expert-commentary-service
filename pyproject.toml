@@ -1,6 +1,6 @@
 [project]
 name = "expert-commentary-service"
-version = "1.0.1"
+version = "1.1.0"
 description = "An AI-powered clinical expert commentary generator for proficiency testing and laboratory EQA schemes."
 readme = "README.md"
 requires-python = ">=3.12"
