@@ -1,14 +1,13 @@
+import logging
 import os
 import re
-import logging
 from dataclasses import dataclass
-from typing import Optional
 from urllib.parse import urlparse
 
 from openai import APIError, OpenAI
 
+from app.prompts import PROMPT_TEMPLATE, SYSTEM_INSTRUCTIONS
 from app.schemas import CommentaryRequest, CommentaryResponse
-from app.prompts import SYSTEM_INSTRUCTIONS, PROMPT_TEMPLATE
 
 LOGGER = logging.getLogger(__name__)
 
@@ -16,20 +15,23 @@ LOGGER = logging.getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROGRAMS_CONFIG_DIR = os.path.join(BASE_DIR, "config", "programs")
 
+
 class LLMConfigError(Exception):
     """The LLM_* environment variables don't describe a usable provider."""
 
+
 @dataclass(frozen=True)
 class LLMConfig:
-    base_url: Optional[str]
-    model: Optional[str]
-    api_key: Optional[str]
+    base_url: str | None
+    model: str | None
+    api_key: str | None
     timeout: float
 
     @property
     def provider(self) -> str:
         """Short name for logs and error messages, e.g. api.deepseek.com"""
         return (urlparse(self.base_url).hostname if self.base_url else None) or "LLM"
+
 
 def get_llm_config() -> LLMConfig:
     """
@@ -48,10 +50,15 @@ def get_llm_config() -> LLMConfig:
         timeout=float(os.getenv("LLM_TIMEOUT", "110")),
     )
     if config.api_key:
-        missing = [name for name, value in (("LLM_BASE_URL", config.base_url), ("LLM_MODEL", config.model)) if not value]
+        missing = [
+            name for name, value in (("LLM_BASE_URL", config.base_url), ("LLM_MODEL", config.model)) if not value
+        ]
         if missing:
-            raise LLMConfigError(f"LLM_API_KEY is set but {' and '.join(missing)} {'is' if len(missing) == 1 else 'are'} not.")
+            raise LLMConfigError(
+                f"LLM_API_KEY is set but {' and '.join(missing)} {'is' if len(missing) == 1 else 'are'} not."
+            )
     return config
+
 
 def load_program_description(program_code: str) -> str:
     """
@@ -64,7 +71,7 @@ def load_program_description(program_code: str) -> str:
 
     if os.path.exists(file_path):
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 LOGGER.info(f"Loaded program description from {file_path}")
                 return f.read().strip()
         except Exception as e:
@@ -73,16 +80,20 @@ def load_program_description(program_code: str) -> str:
     LOGGER.warning(f"No local program description found for code '{program_code}' at {file_path}")
     return "No specific clinical guidelines available for this program."
 
+
 # Models sometimes wrap the HTML in a markdown code block despite being told not to
 _CODE_FENCE_RE = re.compile(r"^\s*```[a-zA-Z]*\s*\n(.*?)\n?\s*```\s*$", re.DOTALL)
+
 
 def strip_code_fence(text: str) -> str:
     match = _CODE_FENCE_RE.match(text)
     return match.group(1) if match else text
 
+
 def get_llm_client(config: LLMConfig) -> OpenAI:
     # No retries: the calling platform has its own timeout and a retry would overrun it
     return OpenAI(base_url=config.base_url, api_key=config.api_key, timeout=config.timeout, max_retries=0)
+
 
 def generate_expert_commentary(request: CommentaryRequest) -> CommentaryResponse:
     """
@@ -106,8 +117,8 @@ def generate_expert_commentary(request: CommentaryRequest) -> CommentaryResponse
         mock_html = f"""
         <h3>[DEVELOPMENT MODE - LLM_API_KEY IS NOT SET]</h3>
         <p>This is a mock expert commentary for the <strong>{request.program_name}</strong> program during the <strong>{request.event_name}</strong> cycle.</p>
-        <p>Overall pass rate was {request.overall_pass_rate}%. Performance by sample: {', '.join([f'{a.name} {s.name} ({s.pass_rate}%)' for a in request.analytes for s in a.samples])}.</p>
-        <p>Failure modes addressed: {', '.join(request.common_failure_modes) if request.common_failure_modes else 'None'}.</p>
+        <p>Overall pass rate was {request.overall_pass_rate}%. Performance by sample: {", ".join([f"{a.name} {s.name} ({s.pass_rate}%)" for a in request.analytes for s in a.samples])}.</p>
+        <p>Failure modes addressed: {", ".join(request.common_failure_modes) if request.common_failure_modes else "None"}.</p>
         <p><em>Disclaimer: Please set the LLM_API_KEY environment variable to generate real AI commentary.</em></p>
         """
         return CommentaryResponse(commentary_html=mock_html.strip(), usage_tokens=0)
@@ -123,7 +134,7 @@ def generate_expert_commentary(request: CommentaryRequest) -> CommentaryResponse
                 {"role": "system", "content": SYSTEM_INSTRUCTIONS},
                 {"role": "user", "content": compiled_prompt},
             ],
-            temperature=0.2, # Low temperature for consistent, analytical clinical output
+            temperature=0.2,  # Low temperature for consistent, analytical clinical output
         )
     except APIError as e:
         LOGGER.error(f"{config.provider} API call failed: {e}")
@@ -138,5 +149,5 @@ def generate_expert_commentary(request: CommentaryRequest) -> CommentaryResponse
 
     return CommentaryResponse(
         commentary_html=strip_code_fence(commentary_text.strip()).strip(),
-        usage_tokens=response.usage.total_tokens if response.usage else None
+        usage_tokens=response.usage.total_tokens if response.usage else None,
     )
