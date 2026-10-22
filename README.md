@@ -1,144 +1,96 @@
-# AI EQA Commentary Generator
+# Expert commentary service
 
-An open-source microservice built with FastAPI and any OpenAI-compatible LLM API (DeepSeek, Qwen, Gemini, ...) to automatically generate expert clinical commentaries for laboratory proficiency testing (PT) and External Quality Assessment (EQA) schemes. 
+A small FastAPI service that drafts expert commentaries for laboratory proficiency testing (PT) and external quality assessment (EQA) schemes. You send it the results of a test event; it asks an LLM to write the commentary and returns the draft as HTML for a person to review and publish.
 
-This service helps PT/EQA providers automate draft commentary reports by combining raw laboratory data, method performance cohorts, historical results, and clinical rules.
+It works with any provider that has an OpenAI-compatible chat API, such as DeepSeek, Qwen or Gemini.
 
----
+## How it fits in
 
-## System Architecture
+1. Your EQA platform compiles the event's statistics and posts them to `POST /api/v1/commentary/generate`.
+2. The service turns them into a prompt and sends it to the LLM.
+3. It returns the HTML draft and the token count.
+4. Your platform shows the draft to an expert, who edits and publishes it.
 
-The service is completely stateless and designed around a **Push-Only** model. Any EQA/PT management system can compile results and history, send a payload to this service, and receive a beautifully formatted clinical expert commentary draft in HTML.
+The service keeps no data between requests and has no database.
 
-```mermaid
-flowchart TD
-    subgraph Client ["EQA / PT Platform"]
-        DB[(Platform Database)]
-        Router[Client API Client]
-        AdminUI[Admin Dashboard]
-    end
+## What gets sent to the LLM
 
-    subgraph Service ["AI EQA Commentary Service"]
-        API[POST /api/v1/commentary/generate]
-        PromptEng[Prompt Compiler]
-        TemplateDB[(Local Program Configs)]
-    end
+Each request becomes one chat completion call with two messages.
 
-    subgraph LLM ["LLM Provider (OpenAI-compatible)"]
-        Model[DeepSeek / Qwen / Gemini]
-    end
+The system message is the fixed set of writing rules in `app/prompts.py`. It contains no event data.
 
-    DB -->|Fetch stats & history| Router
-    Router -->|1. Post JSON payload| API
-    API -->|2. Merge data + templates| PromptEng
-    TemplateDB -->|Load program markdown| PromptEng
-    PromptEng -->|3. Query with system rules| Model
-    Model -->|4. Return HTML text| API
-    API -->|5. Return response| Router
-    Router -->|6. Save draft| DB
-    AdminUI -->|7. Expert review & edit| DB
+The user message is built from your request, and everything in it comes from what you sent:
+
+- the program name and code, and the event name
+- a program description: `program_description` from the request if you sent one, otherwise the contents of `config/programs/<program code>.md` if that file exists, otherwise a line saying there are no guidelines
+- the overall pass rate and the program totals
+- for each analyte: its name, whether it's quantitative, its totals and the reviewer's note
+- for each sample: its name, assigned value, the counts of acceptable, warning, not acceptable and ungraded results, and the pass rate
+- each cohort's name (method, reagent or instrument), result count, acceptable percentage and, if given, mean and CV
+- earlier events' names, pass rates and changes
+- the common failure modes you listed
+- the example commentaries, in full
+
+The call also carries the model name, a temperature of 0.2 and your API key.
+
+The service adds nothing beyond this. It sees only what you put in the request, so keep lab names, lab codes and anything else that identifies a participant out of it. Watch the free-text fields in particular: reviewer notes, failure modes, the program description and example commentaries are passed to the model word for word. Once the prompt reaches the provider, their data retention and training terms apply.
+
+The service's own logs record the program code, event name, provider host, model and any error messages. They don't record the request body or the prompt.
+
+## Running it locally
+
+You need [uv](https://github.com/astral-sh/uv). Install the dependencies:
+
+```bash
+uv sync
 ```
 
-### Data Flow Sequence
+Create a `.env` file:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant UI as Admin Dashboard
-    participant Client as PT Platform Backend
-    participant Service as Commentary Service
-    participant LLM as LLM Provider
-
-    UI->>Client: Request commentary draft
-    Client->>Client: Compile stats, method cohorts, and history
-    Client->>Service: POST /api/v1/commentary/generate
-    Note over Service: Load program definition,<br/>compile Jinja2 prompt template
-    Service->>LLM: Request generation (strictly structured instructions)
-    LLM-->>Service: Return expert commentary HTML
-    Service-->>Client: Return JSON response (HTML + token usage)
-    Client->>UI: Render draft in rich text editor for final review & approval
+```env
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-flash
+LLM_API_KEY=your_provider_api_key_here
+# Optional, seconds to wait for the provider
+# LLM_TIMEOUT=110
+PORT=8005
+# Optional: when set, requests must send a matching X-Service-Token header
+SERVICE_TOKEN=shared_secret_with_the_calling_backend
 ```
 
----
+Without `LLM_API_KEY` the service returns a placeholder commentary, which is enough for development.
 
-## Directory Structure
+Start the server:
 
-```text
-expert-commentary-service/
-├── app/
-│   ├── __init__.py
-│   ├── main.py        # FastAPI app & endpoint routing
-│   ├── schemas.py     # Pydantic models for EQA data validation
-│   ├── services.py    # Prompt orchestration & LLM API interaction
-│   └── prompts.py     # System instructions and clinical quality guardrails
-├── config/
-│   └── programs/      # Default Markdown guidelines for specific EQA programs
-│       └── malaria-diagnostic.md
-├── tests/
-│   └── test_api.py    # Pytest suite
-├── pyproject.toml     # UV dependency file
-├── LICENSE            # MIT License
-└── Dockerfile         # Lightweight multi-stage Docker configuration
+```bash
+uv run fastapi dev app/main.py --port 8005
 ```
 
----
+The API docs are at [http://localhost:8005/docs](http://localhost:8005/docs).
 
-## Customizing EQA Program Contexts
+CI runs these on every push and pull request:
 
-You can specify the clinical rules, educational materials, and general description of an EQA program in two ways:
+```bash
+uv run ruff check .
+uv run ruff format .
+uv run pytest
+```
 
-1. **Dynamically**: Pass a `program_description` string inside the POST request payload.
-2. **Statically**: Create a Markdown file in `config/programs/` named `{program_code}.md` (e.g. `MALARIA-RDT.md`). The service will automatically load this template if no `program_description` is supplied in the request.
+## LLM providers
 
----
+Set `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY` to switch providers:
 
-## Development Setup
+| Provider | `LLM_BASE_URL` | Example `LLM_MODEL` |
+|---|---|---|
+| DeepSeek | `https://api.deepseek.com` | `deepseek-flash`, `deepseek-v4-pro` |
+| Qwen (DashScope) | `https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1` | `qwen3.8-max` |
+| Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-3.8-flash` |
 
-### System Prerequisites
-- [UV](https://github.com/astral-sh/uv) (Python package and workflow manager)
-- [Docker](https://docs.docker.com/) (Optional, for containerized deployments)
+Model names change often, so check the provider's docs. `GET /health` shows the base URL and model in use, and reports `misconfigured` if a key is set without a base URL or model.
 
-### Local Environment Setup
+## Docker image
 
-1. **Install Dependencies**
-   Install the virtual environment and all packages:
-   ```bash
-   uv sync
-   ```
-
-2. **Configure Environment**
-   Create a `.env` file in the root directory:
-   ```env
-   LLM_BASE_URL=https://api.deepseek.com
-   LLM_MODEL=deepseek-flash
-   LLM_API_KEY=your_provider_api_key_here
-   # Optional, seconds to wait for the provider
-   # LLM_TIMEOUT=110
-   PORT=8005
-   # Optional: when set, requests must send a matching X-Service-Token header
-   SERVICE_TOKEN=shared_secret_with_the_calling_backend
-   ```
-
-3. **Run the Application**
-   Start the FastAPI development server:
-   ```bash
-   uv run fastapi dev app/main.py --port 8005
-   ```
-   Once running, access the interactive OpenAPI documentation at [http://localhost:8005/docs](http://localhost:8005/docs).
-
-4. **Lint, Format and Test**
-   CI runs the same checks on every push and pull request:
-   ```bash
-   uv run ruff check .
-   uv run ruff format .
-   uv run pytest
-   ```
-
----
-
-### Docker Image
-
-Every push to `main` publishes `ghcr.io/tony-nyagah/expert-commentary-service` tagged `latest`, `main` and `sha-<short sha>`; version tags like `v1.2.3` also publish `1.2.3` and `1.2`. Pin a `sha-` or version tag in deployments.
+Every push to `main` publishes `ghcr.io/tony-nyagah/expert-commentary-service` tagged `latest`, `main` and `sha-<short sha>`. Version tags like `v1.2.3` also publish `1.2.3` and `1.2`. Pin a version or `sha-` tag in deployments.
 
 ```bash
 docker run -p 8005:8005 \
@@ -147,27 +99,24 @@ docker run -p 8005:8005 \
   ghcr.io/tony-nyagah/expert-commentary-service:latest
 ```
 
-### LLM Providers
+## Program descriptions
 
-The service calls the provider's OpenAI-compatible chat completions API, so any provider that offers one works and switching is only a matter of `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY`:
+The model writes a better introduction when it knows what the program tests. You can describe a program in two ways:
 
-| Provider | `LLM_BASE_URL` | Example `LLM_MODEL` |
-|---|---|---|
-| DeepSeek | `https://api.deepseek.com` | `deepseek-flash`, `deepseek-v4-pro` |
-| Qwen (DashScope) | `https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1` | `qwen3.8-max` |
-| Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-3.8-flash` |
+1. Send `program_description` in the request.
+2. Add a Markdown file to `config/programs/`. The file name is the program code in lower case, so `MALARIA-RDT` loads `config/programs/malaria-rdt.md`.
 
-Model names change often; check the provider's docs. Without `LLM_API_KEY` the service returns a placeholder commentary, which is handy for development. `GET /health` shows the base URL and model in use.
+The request wins if you do both.
 
----
+## API
 
-## Key Integration Point
+### `POST /api/v1/commentary/generate`
 
-### Endpoint: `POST /api/v1/commentary/generate`
+Send an `X-Service-Token` header if `SERVICE_TOKEN` is set.
 
-**Request Schema:**
+`totals` (for the program and each analyte) and each history entry's `change` are figures you've already worked out. The model is told to quote them and not to do its own arithmetic, so the numbers in the draft can be checked against your data. `example_commentaries` are earlier commentaries for the same program written by people. The model follows their structure and tone but is told not to reuse their figures.
 
-Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `totals` (per analyte and for the program) and history `change` are optional precomputed figures; the model is told to quote them instead of doing its own arithmetic. `example_commentaries` are earlier commentaries for the same program written by people; the model copies their structure and tone but must not reuse their figures. `warning`, `ungraded`, `review_comment`, `assigned_value`, cohort `mean`/`cv`, and all the lists except `analytes` are optional.
+`program_code`, `program_name`, `event_name`, `overall_pass_rate` and `analytes` are required. `totals`, `warning`, `ungraded`, `review_comment`, `assigned_value`, cohort `mean` and `cv`, and the other lists are optional.
 
 ```json
 {
@@ -221,7 +170,8 @@ Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `totals` (p
 }
 ```
 
-**Response Schema:**
+Response:
+
 ```json
 {
   "commentary_html": "<p>This EQA cycle evaluated...</p>",
@@ -229,8 +179,21 @@ Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `totals` (p
 }
 ```
 
----
+Errors: `401` for a missing or wrong service token, `422` for an invalid request, `500` if the LLM settings are incomplete or something unexpected fails, and `502` if the provider fails or returns an empty reply.
+
+## Project layout
+
+```text
+app/
+  main.py        FastAPI app, routes and the service token check
+  schemas.py     request and response models
+  services.py    LLM settings, prompt building and the provider call
+  prompts.py     the system instructions and prompt template
+config/programs/ optional Markdown descriptions, one per program
+tests/           pytest suite
+Dockerfile       multi-stage image build
+```
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).
