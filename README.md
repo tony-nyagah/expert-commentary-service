@@ -1,6 +1,6 @@
 # AI EQA Commentary Generator
 
-An open-source microservice built with FastAPI and Google Gemini API to automatically generate expert clinical commentaries for laboratory proficiency testing (PT) and External Quality Assessment (EQA) schemes. 
+An open-source microservice built with FastAPI and any OpenAI-compatible LLM API (DeepSeek, Qwen, Gemini, ...) to automatically generate expert clinical commentaries for laboratory proficiency testing (PT) and External Quality Assessment (EQA) schemes. 
 
 This service helps PT/EQA providers automate draft commentary reports by combining raw laboratory data, method performance cohorts, historical results, and clinical rules.
 
@@ -24,8 +24,8 @@ flowchart TD
         TemplateDB[(Local Program Configs)]
     end
 
-    subgraph LLM ["Google Gemini API"]
-        Model[Gemini Pro/Flash]
+    subgraph LLM ["LLM Provider (OpenAI-compatible)"]
+        Model[DeepSeek / Qwen / Gemini]
     end
 
     DB -->|Fetch stats & history| Router
@@ -47,14 +47,14 @@ sequenceDiagram
     participant UI as Admin Dashboard
     participant Client as PT Platform Backend
     participant Service as Commentary Service
-    participant Gemini as Google Gemini API
+    participant LLM as LLM Provider
 
     UI->>Client: Request commentary draft
     Client->>Client: Compile stats, method cohorts, and history
     Client->>Service: POST /api/v1/commentary/generate
     Note over Service: Load program definition,<br/>compile Jinja2 prompt template
-    Service->>Gemini: Request generation (strictly structured instructions)
-    Gemini-->>Service: Return expert commentary HTML
+    Service->>LLM: Request generation (strictly structured instructions)
+    LLM-->>Service: Return expert commentary HTML
     Service-->>Client: Return JSON response (HTML + token usage)
     Client->>UI: Render draft in rich text editor for final review & approval
 ```
@@ -109,16 +109,36 @@ You can specify the clinical rules, educational materials, and general descripti
 2. **Configure Environment**
    Create a `.env` file in the root directory:
    ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
+   LLM_BASE_URL=https://api.deepseek.com
+   LLM_MODEL=deepseek-flash
+   LLM_API_KEY=your_provider_api_key_here
+   # Optional, seconds to wait for the provider
+   # LLM_TIMEOUT=110
    PORT=8005
+   # Optional: when set, requests must send a matching X-Service-Token header
+   SERVICE_TOKEN=shared_secret_with_the_calling_backend
    ```
 
 3. **Run the Application**
    Start the FastAPI development server:
    ```bash
-   uv run fastapi dev app.main:app --port 8005
+   uv run fastapi dev app/main.py --port 8005
    ```
    Once running, access the interactive OpenAPI documentation at [http://localhost:8005/docs](http://localhost:8005/docs).
+
+---
+
+### LLM Providers
+
+The service calls the provider's OpenAI-compatible chat completions API, so any provider that offers one works and switching is only a matter of `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY`:
+
+| Provider | `LLM_BASE_URL` | Example `LLM_MODEL` |
+|---|---|---|
+| DeepSeek | `https://api.deepseek.com` | `deepseek-flash`, `deepseek-v4-pro` |
+| Qwen (DashScope) | `https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1` | `qwen3.8-max` |
+| Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-3.8-flash` |
+
+Model names change often; check the provider's docs. Without `LLM_API_KEY` the service returns a placeholder commentary, which is handy for development. `GET /health` shows the base URL and model in use.
 
 ---
 
@@ -127,26 +147,40 @@ You can specify the clinical rules, educational materials, and general descripti
 ### Endpoint: `POST /api/v1/commentary/generate`
 
 **Request Schema:**
+
+Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `example_commentaries` are earlier commentaries for the same program written by people; the model copies their structure and tone but must not reuse their figures. `warning`, `ungraded`, `review_comment`, `assigned_value`, cohort `mean`/`cv`, and all the lists except `analytes` are optional.
+
 ```json
 {
   "program_code": "MALARIA-RDT",
   "program_name": "Malaria Rapid Diagnostic Tests EQA",
   "event_name": "TE-2026-02",
-  "overall_average_score": 92.5,
-  "samples": [
+  "overall_pass_rate": 92.0,
+  "analytes": [
     {
-      "sample_name": "Sample A",
-      "target_value": null,
-      "pass_rate": 90.0,
-      "average_score": 90.0
+      "name": "Malaria Antigen",
+      "is_quantitative": false,
+      "review_comment": "Several false negatives on Sample C",
+      "samples": [
+        {
+          "name": "Sample A",
+          "assigned_value": "Positive",
+          "participants": 40,
+          "acceptable": 36,
+          "warning": 0,
+          "not_acceptable": 4,
+          "ungraded": 0,
+          "pass_rate": 90.0
+        }
+      ]
     }
   ],
   "cohorts": [
     {
-      "method_name": "Immunochromatography",
-      "participant_count": 45,
-      "mean": 91.2,
-      "cv": 5.4
+      "name": "SD BIOLINE",
+      "kind": "reagent",
+      "participant_count": 30,
+      "acceptable_percent": 93.33
     }
   ],
   "common_failure_modes": [
@@ -156,9 +190,11 @@ You can specify the clinical rules, educational materials, and general descripti
   "history": [
     {
       "event_name": "TE-2026-01",
-      "average_score": 89.0,
       "pass_rate": 87.5
     }
+  ],
+  "example_commentaries": [
+    "<p>This EQA program tests the ability to detect malaria parasites...</p>"
   ]
 }
 ```
