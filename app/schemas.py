@@ -17,6 +17,13 @@ class SampleStats(BaseModel):
     pass_rate: float = Field(..., description="Percentage of graded results that were acceptable")
 
 
+class ResultTotals(BaseModel):
+    results: int = Field(..., description="Number of results, including ungraded ones")
+    graded: int = Field(..., description="Number of graded results (acceptable, warning or not acceptable)")
+    acceptable: int = Field(..., description="Number of results graded acceptable")
+    pass_rate: float = Field(..., description="Acceptable results as a percentage of graded results")
+
+
 class AnalyteStats(BaseModel):
     name: str = Field(..., description="Name of the analyte or test")
     is_quantitative: bool = Field(..., description="Whether the analyte reports numeric results")
@@ -24,6 +31,7 @@ class AnalyteStats(BaseModel):
         None, description="Note left by the scientist who reviewed this analyte's analysis"
     )
     samples: list[SampleStats] = Field(..., description="Performance statistics per sample")
+    totals: ResultTotals | None = Field(None, description="The analyte's results across all its samples")
 
 
 class Cohort(BaseModel):
@@ -38,6 +46,7 @@ class Cohort(BaseModel):
 class HistoricalEventStats(BaseModel):
     event_name: str = Field(..., description="Name/code of the earlier test event")
     pass_rate: float = Field(..., description="Overall pass rate in that event")
+    change: float | None = Field(None, description="Current overall pass rate minus this event's, in percentage points")
 
 
 class CommentaryRequest(BaseModel):
@@ -46,6 +55,7 @@ class CommentaryRequest(BaseModel):
     event_name: str = Field(..., description="Name of the current EQA test event")
     overall_pass_rate: float = Field(..., description="Mean of the per-sample pass rates across the program")
     analytes: list[AnalyteStats] = Field(..., description="Performance statistics per analyte and sample")
+    totals: ResultTotals | None = Field(None, description="Results across every analyte and sample in the program")
     cohorts: list[Cohort] = Field(default=[], description="Performance grouped by method, reagent or instrument")
     common_failure_modes: list[str] = Field(
         default=[], description="Common causes of failure identified by technical staff"

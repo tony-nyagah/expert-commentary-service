@@ -17,6 +17,7 @@ Guidelines for Writing:
    - Add a standard EQA disclaimer at the very end stating that overall stats represent the cohort and do not reflect any single laboratory's individual standing.
 4. Strict Constraints:
    - Do NOT hallucinate or extrapolate stats. Use ONLY the exact numbers (counts, pass rates, assigned values, means, CVs) given under the current cycle, cohort and historical sections of the prompt.
+   - Do NOT do your own arithmetic. Totals per analyte, program totals and changes from earlier events are provided; quote those instead of adding up, subtracting or averaging figures yourself.
    - NEVER copy numbers, sample outcomes, reagent names or event names from the example commentaries. They describe earlier events; only their wording and structure may be reused.
    - Do NOT invent specific laboratory names or proprietary brand findings unless they are explicitly given as cohort names.
    - Output your response strictly in clean, semantic HTML. Use only `<p>`, `<ul>`, `<li>`, `<ol>`, `<strong>`, `<em>`, `<h3>`, `<h4>`, `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>` and `<td>` tags. A table is a good way to present per-sample results. Do NOT wrap the output in a markdown code block, and do NOT include `<html>`, `<head>`, or `<body>` wrappers.
@@ -33,9 +34,15 @@ Please generate the expert commentary for the following EQA test event:
 {{ program_description }}
 
 ### Current Cycle Performance Statistics
-- **Overall pass rate**: {{ overall_pass_rate }}%
+- **Overall pass rate**: {{ overall_pass_rate }}% (mean of the per-sample pass rates)
+{%- if totals %}
+- **All results**: {{ totals.results }} results, {{ totals.graded }} graded, {{ totals.acceptable }} acceptable ({{ totals.pass_rate }}% of graded results)
+{%- endif %}
 {%- for analyte in analytes %}
 - **Analyte: {{ analyte.name }}** ({{ "quantitative" if analyte.is_quantitative else "qualitative" }})
+  {%- if analyte.totals %}
+  - Analyte total: {{ analyte.totals.results }} results, {{ analyte.totals.graded }} graded, {{ analyte.totals.acceptable }} acceptable ({{ analyte.totals.pass_rate }}% of graded results)
+  {%- endif %}
   {%- if analyte.review_comment %}
   - Reviewer note: "{{ analyte.review_comment }}"
   {%- endif %}
@@ -57,7 +64,7 @@ Only one method/reagent was used, so there is no cohort comparison for this cycl
 {%- if history %}
 Overall pass rate in previous cycles:
 {%- for hist in history %}
-  - **{{ hist.event_name }}**: {{ hist.pass_rate }}%
+  - **{{ hist.event_name }}**: {{ hist.pass_rate }}%{% if hist.change is not none %} (this event is {{ "%+.1f"|format(hist.change) }} percentage points compared with it){% endif %}
 {%- endfor %}
 {%- else %}
 No historical cycle data is available. Focus solely on the current cycle's performance.

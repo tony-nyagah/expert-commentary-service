@@ -167,7 +167,7 @@ Model names change often; check the provider's docs. Without `LLM_API_KEY` the s
 
 **Request Schema:**
 
-Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `example_commentaries` are earlier commentaries for the same program written by people; the model copies their structure and tone but must not reuse their figures. `warning`, `ungraded`, `review_comment`, `assigned_value`, cohort `mean`/`cv`, and all the lists except `analytes` are optional.
+Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `totals` (per analyte and for the program) and history `change` are optional precomputed figures; the model is told to quote them instead of doing its own arithmetic. `example_commentaries` are earlier commentaries for the same program written by people; the model copies their structure and tone but must not reuse their figures. `warning`, `ungraded`, `review_comment`, `assigned_value`, cohort `mean`/`cv`, and all the lists except `analytes` are optional.
 
 ```json
 {
@@ -175,6 +175,7 @@ Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `example_co
   "program_name": "Malaria Rapid Diagnostic Tests EQA",
   "event_name": "TE-2026-02",
   "overall_pass_rate": 92.0,
+  "totals": {"results": 40, "graded": 40, "acceptable": 36, "pass_rate": 90.0},
   "analytes": [
     {
       "name": "Malaria Antigen",
@@ -191,7 +192,8 @@ Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `example_co
           "ungraded": 0,
           "pass_rate": 90.0
         }
-      ]
+      ],
+      "totals": {"results": 40, "graded": 40, "acceptable": 36, "pass_rate": 90.0}
     }
   ],
   "cohorts": [
@@ -209,7 +211,8 @@ Send an `X-Service-Token` header when `SERVICE_TOKEN` is configured. `example_co
   "history": [
     {
       "event_name": "TE-2026-01",
-      "pass_rate": 87.5
+      "pass_rate": 87.5,
+      "change": 4.5
     }
   ],
   "example_commentaries": [

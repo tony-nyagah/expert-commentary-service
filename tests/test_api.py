@@ -132,6 +132,32 @@ def test_prompt_without_examples_or_cohorts() -> None:
     assert "there is no cohort comparison" in prompt
 
 
+def test_prompt_includes_totals_and_changes_when_given() -> None:
+    analyte = {
+        **PAYLOAD["analytes"][0],
+        "totals": {"results": 80, "graded": 80, "acceptable": 74, "pass_rate": 92.5},
+    }
+    payload = {
+        **PAYLOAD,
+        "analytes": [analyte],
+        "totals": {"results": 80, "graded": 80, "acceptable": 74, "pass_rate": 92.5},
+        "history": [{"event_name": "TE-2026-01", "pass_rate": 87.5, "change": 4.5}],
+    }
+    prompt = PROMPT_TEMPLATE.render(**CommentaryRequest(**payload).model_dump())
+
+    assert "- **All results**: 80 results, 80 graded, 74 acceptable (92.5% of graded results)" in prompt
+    assert "- Analyte total: 80 results, 80 graded, 74 acceptable (92.5% of graded results)" in prompt
+    assert "**TE-2026-01**: 87.5% (this event is +4.5 percentage points compared with it)" in prompt
+
+
+def test_prompt_without_totals_still_renders() -> None:
+    prompt = PROMPT_TEMPLATE.render(**CommentaryRequest(**PAYLOAD).model_dump())
+
+    assert "All results" not in prompt
+    assert "Analyte total" not in prompt
+    assert "**TE-2026-01**: 87.5%\n" in prompt
+
+
 def test_config_comes_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LLM_BASE_URL", "https://dashscope.example.com/compatible-mode/v1")
     monkeypatch.setenv("LLM_MODEL", "qwen3.8-max")
