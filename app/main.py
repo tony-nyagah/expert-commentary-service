@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
 from app.schemas import CommentaryRequest, CommentaryResponse
-from app.services import generate_expert_commentary
+from app.services import LLMConfigError, generate_expert_commentary, get_llm_config
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -22,7 +22,7 @@ LOGGER = logging.getLogger("expert-commentary-service")
 app = FastAPI(
     title="AI EQA Commentary Generator",
     version="1.0.0",
-    description="A standalone clinical expert commentary generator for laboratory proficiency testing (PT) and External Quality Assessment (EQA) schemes using Google Gemini.",
+    description="A standalone clinical expert commentary generator for laboratory proficiency testing (PT) and External Quality Assessment (EQA) schemes using any OpenAI-compatible LLM (DeepSeek, Qwen, Gemini, ...).",
 )
 
 # No CORS middleware: the service is meant to be called server-to-server by the EQA platform's
@@ -45,12 +45,16 @@ def health_check():
     """
     Service health check endpoint.
     """
-    api_key_configured = bool(os.getenv("GEMINI_API_KEY"))
+    try:
+        config = get_llm_config()
+    except LLMConfigError as e:
+        return {"status": "misconfigured", "service": "expert-commentary-service", "detail": str(e)}
     return {
         "status": "healthy",
         "service": "expert-commentary-service",
-        "gemini_api_configured": api_key_configured,
-        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        "llm_base_url": config.base_url,
+        "llm_model": config.model,
+        "llm_api_key_configured": config.api_key is not None,
     }
 
 @app.post(
@@ -66,6 +70,12 @@ def generate_commentary(request: CommentaryRequest) -> CommentaryResponse:
         LOGGER.info(f"Received commentary generation request for program: {request.program_code}, event: {request.event_name}")
         response = generate_expert_commentary(request)
         return response
+    except LLMConfigError as e:
+        LOGGER.error(f"Configuration error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
     except ValueError as e:
         LOGGER.error(f"Validation error: {e}")
         raise HTTPException(
