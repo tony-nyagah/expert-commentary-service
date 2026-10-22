@@ -63,8 +63,9 @@ PAYLOAD: Dict[str, Any] = {
 
 @pytest.fixture(autouse=True)
 def offline(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Run every test in mock mode, without external network calls."""
+    """Run every test in mock mode with no token check unless a test sets one."""
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("SERVICE_TOKEN", raising=False)
 
 def test_health_check() -> None:
     """
@@ -102,6 +103,17 @@ def test_generate_commentary_success() -> None:
     assert "TE-2026-02" in data["commentary_html"]
     assert "Sample A (90.0%)" in data["commentary_html"]
     assert data["usage_tokens"] == 0
+
+def test_generate_commentary_requires_token_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SERVICE_TOKEN", "s3cret")
+
+    missing = client.post("/api/v1/commentary/generate", json=PAYLOAD)
+    wrong = client.post("/api/v1/commentary/generate", json=PAYLOAD, headers={"X-Service-Token": "nope"})
+    right = client.post("/api/v1/commentary/generate", json=PAYLOAD, headers={"X-Service-Token": "s3cret"})
+
+    assert missing.status_code == 401
+    assert wrong.status_code == 401
+    assert right.status_code == 200
 
 def test_prompt_includes_current_stats_and_examples() -> None:
     request = CommentaryRequest(**PAYLOAD)
