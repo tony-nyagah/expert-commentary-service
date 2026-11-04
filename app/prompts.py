@@ -6,15 +6,17 @@ Your task is to write a professional, clinical expert commentary summary for a l
 
 Guidelines for Writing:
 1. Tone: Maintain a highly professional, objective, academic, and encouraging clinical tone.
-2. Example commentaries: If earlier commentaries for this program are provided, they were written by the program's experts. Follow their structure, section order, length, tone and description of the program as closely as possible, so the new commentary reads as the next one in the series.
-3. Structure (use this when no example commentaries are provided, and to fill gaps the examples leave):
-   - Start with an introductory overview of the program's clinical relevance and testing principles (based on the program description provided).
-   - Detail the current cycle's performance, summarizing the overall pass rate and each sample's outcome.
-   - Perform a trend analysis comparing current performance to historical events if history data is provided.
-   - Compare performance across methods, reagents or instruments if cohort data is provided, noting any cohort that performed notably worse.
-   - Provide educational troubleshooting advice regarding the provided common failure modes and reviewer notes, detailing possible causes and recommending specific corrective actions labs can take.
-   - Conclude with encouragement to laboratories to use their individual results for corrective action and continuous quality improvement.
-   - Add a standard EQA disclaimer at the very end stating that overall stats represent the cohort and do not reflect any single laboratory's individual standing.
+2. Required sections: Every commentary MUST cover the following eight topics, in this order, each under its own `<h3>` heading. They are the scheme's commentary standard, so none may be left out, merged away or renamed beyond small wording changes. Start with a short introduction to the program's clinical relevance and testing principles (based on the program description provided) before the first section.
+   a) Overall performance against prior expectations, taking measurement uncertainty into account: summarize the overall pass rate, the totals and each sample's outcome against its assigned value. Discuss measurement uncertainty only as far as the data allows (for example cohort CVs or warning results); never invent uncertainty figures.
+   b) Variation within and between participants, and comparison with previous rounds: describe the spread of results across participants and samples, and compare with the earlier events provided. Do NOT cite similar schemes or published data unless they appear in the program description or reviewer notes; never invent references or external figures. If no earlier events are given, say so.
+   c) Variation between methods or procedures: compare the methods, reagents or instruments provided, noting any that performed notably worse. If only one was used, say a comparison is not possible this round.
+   d) Possible sources of error: discuss the likely causes of unacceptable and outlying results, with reference to the samples, reviewer notes and common failure modes provided, and suggest how performance can be improved.
+   e) Advice and educational feedback: give practical, educational guidance that supports participants' continual improvement, such as corrective actions, good practice and training points relevant to this round.
+   f) Situations where evaluation was not possible: describe any unusual factors that made evaluation of results or commentary on performance impossible, such as ungraded results or issues raised in the reviewer notes. If none were reported, say that no such situations were identified in the data provided.
+   g) Other suggestions, recommendations or general comments: anything else useful to participants or the scheme that does not fit above. Keep it brief, and say there are none if nothing applies.
+   h) Conclusions: summarize the key findings and encourage laboratories to use their individual results for corrective action and continuous quality improvement.
+   Finish with a standard EQA disclaimer after the conclusions, stating that overall stats represent the cohort and do not reflect any single laboratory's individual standing.
+3. Example commentaries: If earlier commentaries for this program are provided, they were written by the program's experts. Follow their tone, wording, length and description of the program as closely as possible, so the new commentary reads as the next one in the series. Where their structure differs from the required sections, keep the required sections and fit the examples' style into them.
 4. Strict Constraints:
    - Do NOT hallucinate or extrapolate stats. Use ONLY the exact numbers (counts, pass rates, assigned values, means, CVs) given under the current cycle, cohort and historical sections of the prompt.
    - Do NOT do your own arithmetic. Totals per analyte, program totals and changes from earlier events are provided; quote those instead of adding up, subtracting or averaging figures yourself.
@@ -89,5 +91,5 @@ The following commentaries were written by the program's experts for earlier eve
 </example_commentary>
 {% endfor %}
 {%- endif %}
-Remember: Write a cohesive, well-structured clinical review using semantic HTML tags. Do not output markdown, and do not repeat these prompt instructions in your response.
+Remember: Write a cohesive, well-structured clinical review using semantic HTML tags, covering all eight required sections (a to h) in order, each under its own heading. Do not output markdown, and do not repeat these prompt instructions in your response.
 """)

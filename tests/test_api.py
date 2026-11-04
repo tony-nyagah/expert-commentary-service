@@ -133,6 +133,22 @@ def test_prompt_uses_the_full_program_name_not_the_code() -> None:
     assert "never by a program code, short form or variant name" in SYSTEM_INSTRUCTIONS
 
 
+def test_system_instructions_require_the_eight_commentary_sections() -> None:
+    sections = [
+        "a) Overall performance against prior expectations, taking measurement uncertainty into account",
+        "b) Variation within and between participants, and comparison with previous rounds",
+        "c) Variation between methods or procedures",
+        "d) Possible sources of error",
+        "e) Advice and educational feedback",
+        "f) Situations where evaluation was not possible",
+        "g) Other suggestions, recommendations or general comments",
+        "h) Conclusions",
+    ]
+    positions = [SYSTEM_INSTRUCTIONS.index(section) for section in sections]
+    assert positions == sorted(positions)
+    assert "covering all eight required sections" in PROMPT_TEMPLATE.render(**CommentaryRequest(**PAYLOAD).model_dump())
+
+
 def test_prompt_without_examples_or_cohorts() -> None:
     request = CommentaryRequest(**{**PAYLOAD, "cohorts": [], "example_commentaries": []})
     prompt = PROMPT_TEMPLATE.render(**request.model_dump())

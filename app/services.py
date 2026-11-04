@@ -65,7 +65,7 @@ def load_program_description(program_code: str) -> str:
     Attempts to load a static program description from the config directory.
     Looks for a markdown file matching config/programs/{program_code}.md
     """
-    # Normalize to lowercase and remove alphanumeric characters to prevent path traversal
+    # Normalize to lowercase and keep only letters, digits, '-' and '_' to prevent path traversal
     safe_code = "".join(c for c in program_code.lower() if c.isalnum() or c in "-_")
     file_path = os.path.join(PROGRAMS_CONFIG_DIR, f"{safe_code}.md")
 

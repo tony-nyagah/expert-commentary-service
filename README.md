@@ -19,6 +19,19 @@ Each request becomes one chat completion call with two messages.
 
 The system message is the fixed set of writing rules in `app/prompts.py`. It contains no event data.
 
+The writing rules require every commentary to cover the HUQAS commentary standard, in this order and each under its own heading:
+
+1. Overall performance against prior expectations, taking measurement uncertainty into account
+2. Variation within and between participants, and comparison with previous rounds, similar schemes or published data
+3. Variation between methods or procedures
+4. Possible sources of error, with reference to outliers, and suggestions for improving performance
+5. Advice and educational feedback for participants' continual improvement
+6. Situations where unusual factors made evaluation or commentary impossible
+7. Other suggestions, recommendations or general comments
+8. Conclusions
+
+Example commentaries shape the tone and wording, but they can't remove a section. The model is told to discuss measurement uncertainty and outside data (other schemes, published figures) only as far as the request supports, and never to invent them.
+
 The user message is built from your request, and everything in it comes from what you sent:
 
 - the program name and the event name (the program code is only used to find the description file and in logs; the model is told to use full names, never codes or short forms)
