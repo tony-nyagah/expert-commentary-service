@@ -5,6 +5,12 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  # Called by release-please.yml with the release version, since its tag can't trigger this workflow
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
@@ -43,12 +49,13 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE }}
-          # main → :main and :latest, v1.2.3 → :1.2.3 and :1.2, every build → :sha-<short sha> to pin deploys
+          # main → :main and :latest, release 1.2.3 → :1.2.3 and :1.2, every build → :sha-<short sha> to pin deploys.
+          # A release passes its version in; a pushed v1.2.3 tag falls back to the git ref.
           tags: |
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ inputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version }}
             type=sha
       - uses: docker/build-push-action@v7
         with:
