@@ -1,6 +1,8 @@
 import logging
 import os
 import secrets
+import tomllib
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, status
@@ -17,9 +19,14 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger("expert-commentary-service")
 
+# pyproject.toml is the single source of the version. The project isn't installed as a package,
+# so read the file directly; it ships in the Docker image alongside the app.
+with open(Path(__file__).resolve().parent.parent / "pyproject.toml", "rb") as f:
+    VERSION = tomllib.load(f)["project"]["version"]
+
 app = FastAPI(
     title="AI EQA Commentary Generator",
-    version="1.0.0",
+    version=VERSION,
     description="A standalone clinical expert commentary generator for laboratory proficiency testing (PT) and External Quality Assessment (EQA) schemes using any OpenAI-compatible LLM (DeepSeek, Qwen, Gemini, ...).",
 )
 

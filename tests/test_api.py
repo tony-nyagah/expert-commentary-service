@@ -1,3 +1,4 @@
+import tomllib
 from types import SimpleNamespace
 from typing import Any
 
@@ -67,6 +68,12 @@ def test_health_check() -> None:
     assert data["status"] == "healthy"
     assert data["service"] == "expert-commentary-service"
     assert data["llm_api_key_configured"] is False
+
+
+def test_api_version_comes_from_pyproject() -> None:
+    with open("pyproject.toml", "rb") as f:
+        version = tomllib.load(f)["project"]["version"]
+    assert client.get("/openapi.json").json()["info"]["version"] == version
 
 
 def test_generate_commentary_validation_error() -> None:
