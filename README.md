@@ -103,7 +103,7 @@ Model names change often, so check the provider's docs. `GET /health` shows the 
 
 ## Docker image
 
-Every push to `main` publishes `ghcr.io/tony-nyagah/expert-commentary-service` tagged `latest`, `main` and `sha-<short sha>`. Version tags like `v1.2.3` also publish `1.2.3` and `1.2`. Pin a version or `sha-` tag in deployments.
+Every push to `main` publishes `ghcr.io/tony-nyagah/expert-commentary-service` tagged `latest`, `main` and `sha-<short sha>`. Each release also publishes its version, such as `1.2.3` and `1.2`. Pin a version or `sha-` tag in deployments.
 
 ```bash
 docker run -p 8005:8005 \
@@ -111,6 +111,19 @@ docker run -p 8005:8005 \
   -e SERVICE_TOKEN=shared_secret \
   ghcr.io/tony-nyagah/expert-commentary-service:latest
 ```
+
+## Releases
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please) and depend on [Conventional Commits](https://www.conventionalcommits.org/) messages on `main`:
+
+- `fix:` releases a patch version (1.3.0 to 1.3.1)
+- `feat:` releases a minor version (1.3.0 to 1.4.0)
+- `feat!:` or a `BREAKING CHANGE:` footer releases a major version (1.3.0 to 2.0.0)
+- `docs:`, `ci:`, `chore:`, `test:` and similar don't release on their own
+
+After each push to `main`, release-please opens or updates a `chore: release X.Y.Z` pull request that bumps `pyproject.toml` and `uv.lock` and adds the changes to `CHANGELOG.md`. Merging it tags `vX.Y.Z`, creates the GitHub release and publishes the versioned image. The API reads its version from `pyproject.toml`, so `/docs` always shows the released version.
+
+Don't bump the version or push version tags by hand.
 
 ## Program descriptions
 
